@@ -1,0 +1,10 @@
+from pptx.dml.color import RGBColor
+
+DARK_BLUE = RGBColor(18, 38, 68)
+ACCENT_ORANGE = RGBColor(240, 128, 40)
+LIGHT_GRAY = RGBColor(245, 247, 250)
+MID_GRAY = RGBColor(110, 110, 110)
+WHITE = RGBColor(255, 255, 255)
+BLACK = RGBColor(35, 35, 35)
+GREEN = RGBColor(80, 150, 90)
+RED = RGBColor(190, 70, 70)
