@@ -1,0 +1,123 @@
+Quarterly Business Performance Review – Q2 FY2025
+Executive Summary
+The company delivered strong revenue growth during Q2 FY2025, driven primarily by Enterprise customers and expansion into international markets. Revenue increased by 18.4% compared to Q1, while EBITDA margins improved due to better operational efficiency.
+However, customer acquisition costs increased and supply chain delays affected delivery timelines. Leadership should prioritize operational improvements and accelerate digital initiatives to sustain growth.
+________________________________________
+Financial Performance
+Metric	Q1 FY2025	Q2 FY2025	Change
+Revenue	USD 82.5 M	USD 97.7 M	+18.4%
+EBITDA Margin	21.2%	24.6%	+3.4 pp
+Net Margin	14.5%	16.8%	+2.3 pp
+Cash Reserves	USD 34.2 M	USD 42.8 M	+25.1%
+Customer Acquisition Cost	USD 410	USD 462	+12.7%
+Employee Cost	USD 19.4 M	USD 21.8 M	+12.3%
+________________________________________
+Revenue Distribution by Segment
+Segment	Revenue Contribution
+Enterprise	52%
+Mid Market	28%
+SMB	20%
+________________________________________
+Regional Revenue
+Region	Revenue (USD M)
+North America	39.4
+Europe	28.6
+APAC	18.2
+Middle East	11.5
+________________________________________
+Operational Metrics
+Metric	Q1	Q2
+Customer Retention	86%	89%
+Delivery Time	5.1 days	6.4 days
+NPS Score	48	55
+Support Resolution Time	14 hrs	10 hrs
+Employee Utilization	78%	83%
+________________________________________
+Monthly Revenue Trend
+Month	Revenue (USD M)
+January	28.2
+February	31.5
+March	34.0
+April	30.4
+May	32.6
+June	34.7
+________________________________________
+Key Findings
+1.	Enterprise business contributed more than half of total revenue.
+2.	EBITDA margins improved significantly.
+3.	Customer acquisition costs increased by 12.7%.
+4.	Delivery timelines deteriorated due to supply chain issues.
+5.	Retention and customer satisfaction improved.
+________________________________________
+Growth Opportunities
+International Expansion
+APAC revenue grew by 24% and remains underpenetrated.
+AI Product Suite
+Early pilot programs increased customer engagement by 18%.
+Strategic Partnerships
+New channel partnerships can improve distribution efficiency.
+Digital Self-Service Platform
+Expected to reduce support costs by 15%.
+________________________________________
+Risks
+Supply Chain Delays
+Average delivery time increased from 5.1 days to 6.4 days.
+Impact:
+Customer dissatisfaction and delayed implementations.
+Severity:
+High
+________________________________________
+Rising Customer Acquisition Cost
+CAC increased from USD 410 to USD 462.
+Impact:
+Lower profitability and reduced ROI.
+Severity:
+Medium
+________________________________________
+Talent Retention
+Competition for AI talent remains intense.
+Impact:
+Execution delays and slower innovation.
+Severity:
+Medium
+________________________________________
+Market Outlook
+Industry analysts expect the market to grow at 14% CAGR over the next three years.
+AI adoption among enterprise customers is expected to accelerate.
+Cloud transformation spending continues to increase globally.
+________________________________________
+Recommendations
+High Priority
+Improve supply chain visibility and vendor management.
+Expected Impact:
+Reduce delivery delays by 20%.
+________________________________________
+High Priority
+Increase automation in support operations.
+Expected Impact:
+Reduce operational costs by 12%.
+________________________________________
+Medium Priority
+Expand AI product portfolio.
+Expected Impact:
+Improve customer retention and upsell opportunities.
+________________________________________
+Medium Priority
+Accelerate APAC market expansion.
+Expected Impact:
+Increase international revenue contribution.
+________________________________________
+Implementation Roadmap
+Q3 FY2025
+•	Improve logistics tracking systems.
+•	Deploy customer self-service platform.
+Q4 FY2025
+•	Launch AI product enhancements.
+•	Expand sales operations in APAC.
+Q1 FY2026
+•	Build strategic partnerships.
+•	Scale automation initiatives.
+________________________________________
+Conclusion
+The company is demonstrating strong growth and improving profitability. Operational inefficiencies and rising acquisition costs remain important concerns. By addressing execution risks and investing in AI-driven growth initiatives, leadership can sustain momentum and strengthen competitive positioning over the next 12–18 months.
+

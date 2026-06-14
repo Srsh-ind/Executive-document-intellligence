@@ -1,4 +1,4 @@
-streamlit
+
 pandas
 numpy
 matplotlib
@@ -7,3 +7,4 @@ requests
 pypdf
 python-docx
 openpyxl
+pdfplumber
