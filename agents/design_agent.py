@@ -1,12 +1,8 @@
 import json
 import random
-import requests
 
 from agents.json_utils import extract_json
-
-
-VLLM_URL = "http://localhost:8000/v1/chat/completions"
-MODEL_NAME = "Qwen/Qwen2-7B-Instruct"
+from agents.llm_client import call_llm
 
 
 THEME_CATEGORIES = {
@@ -71,7 +67,6 @@ SHAPE_FAMILIES = {
     "motion": [
         "diagonal_panels",
         "curved_wave",
-        "roadmap_curve",
         "timeline_dots"
     ],
     "texture": [
@@ -112,22 +107,6 @@ SUPPORTED_ICON_STYLES = [
 
 
 SUPPORTED_DENSITY = ["low", "medium", "high"]
-
-
-def call_llm(prompt, max_tokens=1600):
-    response = requests.post(
-        VLLM_URL,
-        json={
-            "model": MODEL_NAME,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.55,
-            "max_tokens": max_tokens
-        },
-        timeout=180
-    )
-
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
 
 
 def flatten(values):
@@ -216,11 +195,9 @@ def treatment_for_layout(layout):
 
     if layout in [
         "action_tracker",
-        "recommendation_roadmap",
-        "roadmap",
         "timeline"
     ]:
-        return "roadmap"
+        return "card-grid"
 
     if layout in [
         "risk_dashboard",
@@ -381,7 +358,7 @@ Shape guidance:
 - editorial: high-end consulting, summary-heavy, narrative slides.
 - dashboard: KPI-heavy, reporting, operational performance.
 - cards: modular insight decks and comparison stories.
-- motion: transformation, roadmap, sales, growth, future path.
+- motion: transformation, sales, growth, future path.
 - texture: premium background depth, modern or abstract decks.
 
 Return valid JSON only.
@@ -400,7 +377,7 @@ Schema:
   "slides": [
     {{
       "title": "",
-      "visual_treatment": "hero/summary/dashboard/chart-heavy/card-grid/roadmap/risk-board/minimal",
+      "visual_treatment": "hero/summary/dashboard/chart-heavy/card-grid/risk-board/minimal",
       "accent_style": "subtle/bold/geometric/editorial/minimal",
       "image_query": "",
       "shape_usage": "none/light/medium/heavy",

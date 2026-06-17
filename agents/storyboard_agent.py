@@ -1,11 +1,9 @@
 import json
-import requests
 
 from agents.json_utils import extract_json
+from agents.llm_client import call_llm
 
 
-VLLM_URL = "http://localhost:8000/v1/chat/completions"
-MODEL_NAME = "Qwen/Qwen2-7B-Instruct"
 MAX_SLIDES = 12
 
 
@@ -23,9 +21,6 @@ SUPPORTED_LAYOUTS = [
     "risk_dashboard",
     "opportunity_dashboard",
     "action_tracker",
-    "recommendation_roadmap",
-    "timeline",
-    "roadmap",
     "donut_insights",
     "before_after",
     "closing_slide"
@@ -46,28 +41,10 @@ LAYOUT_GUIDE = {
     "risk_dashboard": "Risks, challenges, gaps, issues, or watch areas.",
     "opportunity_dashboard": "Growth levers, improvement areas, upside potential.",
     "action_tracker": "Leadership actions with priority and impact.",
-    "recommendation_roadmap": "Recommendations organized as sequence, roadmap, or phased plan.",
-    "timeline": "Chronological progress, milestones, process, or evolution.",
-    "roadmap": "Future path, implementation plan, or next steps.",
     "donut_insights": "Few percentage/share metrics with circular/donut style visuals.",
     "before_after": "Before/after, current vs target, previous vs current, change story.",
     "closing_slide": "Final takeaway and forward-looking close."
 }
-
-
-def call_llm(prompt, max_tokens=2200):
-    response = requests.post(
-        VLLM_URL,
-        json={
-            "model": MODEL_NAME,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.45,
-            "max_tokens": max_tokens
-        },
-        timeout=180
-    )
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
 
 
 def safe_list(value):
@@ -221,7 +198,7 @@ def fallback_storyboard(analysis, max_slides=MAX_SLIDES):
             "bullets": [],
             "blocks": [],
             "visual_title": "",
-            "visual_style": "roadmap",
+            "visual_style": "cards",
             "density": "medium",
             "so_what": "Execution focus determines whether the findings become measurable improvement."
         })
@@ -285,7 +262,7 @@ Core design principles:
 - Prefer visual communication over bullets.
 - Every slide must answer: "So what?"
 - Each slide should have one clear message.
-- Use charts, dashboards, comparisons, roadmaps, and visual metaphors wherever possible.
+- Use charts, dashboards, comparisons, action trackers, and visual metaphors wherever possible.
 - Do not create slides just because data exists.
 - Merge only when two slides would contain less than three meaningful elements each.
 - Maximum {max_slides} slides.
@@ -302,7 +279,7 @@ A strong deck usually contains, when evidence supports it:
 2. A KPI/performance dashboard if quantifiable metrics exist.
 3. A market/context/insight slide if findings or insights exist.
 4. A risk/opportunity slide only if risks or opportunities are meaningful.
-5. An action or roadmap slide if recommendations exist.
+5. An action slide if recommendations exist.
 6. A closing slide only if it adds a distinct final takeaway.
 
 Supported layout vocabulary:
@@ -314,7 +291,7 @@ Choose layouts by communication need:
 - If there are charts or visual patterns, use performance_dashboard, split_metrics_chart, donut_insights, comparison_dashboard, or before_after.
 - If there are risks, issues, gaps, or challenges, use risk_dashboard.
 - If there are opportunities, use opportunity_dashboard.
-- If the slide is action-oriented, use action_tracker, recommendation_roadmap, roadmap, or timeline.
+- If the slide is action-oriented, use action_tracker.
 - If the content is mainly interpretation, use insight_dashboard or three_column_status.
 - If there is no meaningful content for a slide, skip it.
 
@@ -339,9 +316,6 @@ When risks or opportunities exist.
 6. Action Slide
 When recommendations exist.
 
-7. Roadmap Slide
-When implementation steps or future actions exist.
-
 Do not merge these unless information is extremely sparse.
 
 Schema:
@@ -360,7 +334,7 @@ Schema:
       "cards": [],
       "bullets": [],
       "visual_title": "",
-      "visual_style": "dashboard/chart/cards/roadmap/timeline/minimal",
+      "visual_style": "dashboard/chart/cards/minimal",
       "density": "low/medium/high"
     }}
   ]
@@ -380,8 +354,8 @@ Mandatory layout rules:
 - If metrics has 3 or more items, include exactly one KPI/dashboard slide using kpi_dashboard or dashboard_grid.
 - Do not create risk_dashboard unless risks has at least one item.
 - If risks is empty but limitations exist, use insight_dashboard or opportunity_dashboard, not risk_dashboard.
-- If recommendations exist, use either action_tracker or recommendation_roadmap, not both unless there are 4+ recommendations.
-- Avoid separate closing_slide if roadmap or action slide already gives a strong final takeaway.
+- If recommendations exist, use action_tracker; do not create roadmap/timeline slides.
+- Avoid separate closing_slide if an action slide already gives a strong final takeaway.
 
 Slide count guidance:
 
@@ -401,16 +375,17 @@ Trends and comparisons -> Performance Dashboard or Comparison Dashboard
 Insights -> Insight Dashboard
 Risks and opportunities -> Risk Dashboard or Three Column Status
 Recommendations -> Action Tracker
-Future initiatives -> Roadmap
+Future initiatives -> Action tracker
 Conclusion -> Closing Slide only if it adds new value.
 Avoid creating only 3-4 slides for documents with substantial metrics and trends.
 
 Analysis:
 {json.dumps(data, indent=2)}
+
 """
 
     try:
-        output = call_llm(prompt)
+        output = call_llm(prompt, max_tokens=2200, temperature=0.45)
         parsed = extract_json(output)
 
         if not parsed or "slides" not in parsed:
@@ -427,7 +402,8 @@ Analysis:
 
         return slides[:max_slides]
 
-    except Exception:
+    except Exception as exc:
+        print(f"[storyboard_agent] storyboard generation failed: {exc}")
         return fallback_storyboard(analysis, max_slides)
 
 

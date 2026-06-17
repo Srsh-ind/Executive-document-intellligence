@@ -17,115 +17,110 @@ def run_pipeline(file_path, create_ppt=True, verbose=True):
     result = {}
 
     if verbose:
-        print("1. Extracting document...")
+        print("=" * 60)
+        print(f"Processing: {os.path.basename(file_path)}")
+        print("=" * 60)
 
+    # ── 1. Extract ────────────────────────────────────────────────
+    if verbose: print("\n[1] Extracting document...")
     doc_data = extract_document_data(file_path)
     result["doc_data"] = doc_data
 
     if verbose:
-        print("Text length:", len(doc_data.get("text", "")))
-        print("Tables:", len(doc_data.get("tables", [])))
-        print("Numbers:", len(doc_data.get("numbers", [])))
-        print("Metric cards:", len(doc_data.get("metric_cards", [])))
-        print("Chart candidates:", len(doc_data.get("chart_candidates", [])))
+        print(f"    Text length     : {len(doc_data.get('text', ''))}")
+        print(f"    Tables          : {len(doc_data.get('tables', []))}")
+        print(f"    Metric cards    : {len(doc_data.get('metric_cards', []))}")
+        print(f"    Chart candidates: {len(doc_data.get('chart_candidates', []))}")
+        print(f"    Sections        : {len(doc_data.get('sections', []))}")
 
-    if verbose:
-        print("\n2. Chunking...")
-
+    # ── 2. Chunk ──────────────────────────────────────────────────
+    if verbose: print("\n[2] Chunking text...")
     chunks = chunk_text(doc_data["text"])
-    result["chunks"] = chunks
+    if verbose: print(f"    Chunks: {len(chunks)}")
 
-    if verbose:
-        print("Chunks:", len(chunks))
-
-    if verbose:
-        print("\n3. Running AI analysis...")
-
+    # ── 3. AI Analysis ────────────────────────────────────────────
+    if verbose: print("\n[3] Running AI analysis...")
     analysis = ai_analyzer.analyze_chunks(
         chunks,
-        tables=doc_data.get("tables", []),
-        chart_candidates=doc_data.get("chart_candidates", []),
-        numbers=doc_data.get("numbers", []),
-        metric_cards=doc_data.get("metric_cards", []),
-        sections=doc_data.get("sections", [])
+        tables           = doc_data.get("tables", []),
+        chart_candidates = doc_data.get("chart_candidates", []),
+        numbers          = doc_data.get("numbers", []),
+        metric_cards     = doc_data.get("metric_cards", []),
+        sections         = doc_data.get("sections", []),
     )
 
-    # Preserve structured extraction data
-    analysis["tables"] = doc_data.get("tables", [])
-    analysis["numbers"] = doc_data.get("numbers", [])
-    analysis["metric_cards"] = doc_data.get("metric_cards", [])
+    # Always carry through all extracted structured data
+    analysis["tables"]           = doc_data.get("tables", [])
+    analysis["numbers"]          = doc_data.get("numbers", [])
+    analysis["metric_cards"]     = doc_data.get("metric_cards", [])
     analysis["chart_candidates"] = doc_data.get("chart_candidates", [])
-    analysis["sections"] = doc_data.get("sections", [])
-
-    result["analysis_before_charts"] = analysis
+    analysis["sections"]         = doc_data.get("sections", [])
 
     if verbose:
-        print("Analysis keys:", analysis.keys())
-        print("Metrics:", len(analysis.get("metrics", [])))
-        print("Risks:", len(analysis.get("risks", [])))
-        print("Recommendations:", len(analysis.get("recommendations", [])))
+        print(f"    Title           : {analysis.get('title', '')[:60]}")
+        print(f"    Metrics         : {len(analysis.get('metrics', []))}")
+        print(f"    Key findings    : {len(analysis.get('key_findings', []))}")
+        print(f"    Risks           : {len(analysis.get('risks', []))}")
+        print(f"    Opportunities   : {len(analysis.get('opportunities', []))}")
+        print(f"    Recommendations : {len(analysis.get('recommendations', []))}")
+        print(f"    Visuals (AI)    : {len(analysis.get('visuals', []))}")
 
-    if verbose:
-        print("\n4. Creating visual assets...")
-
-    analysis = create_visual_assets(analysis)
-    result["analysis"] = analysis
-
-    if verbose:
-        print("Chart paths:", len(analysis.get("chart_paths", [])))
-        for chart in analysis.get("chart_paths", []):
-            print(chart)
-
-    if verbose:
-        print("\n5. Building storyboard...")
-
+    # ── 4. Storyboard ─────────────────────────────────────────────
+    if verbose: print("\n[4] Building storyboard...")
     storyboard = build_storyboard(analysis)
-    result["storyboard_raw"] = storyboard
-
-    clean_storyboard = normalize_storyboard(storyboard)
-    result["storyboard"] = clean_storyboard
+    # normalize_storyboard injects cover + closing automatically
+    storyboard = normalize_storyboard(storyboard, analysis=analysis)
 
     if verbose:
-        for i, slide in enumerate(clean_storyboard, 1):
-            print(i, slide.get("layout"), "-", slide.get("title"))
-            print("cards:", len(slide.get("cards", [])))
-            print("bullets:", len(slide.get("bullets", [])))
-            print("blocks:", len(slide.get("blocks", [])))
+        for i, s in enumerate(storyboard, 1):
+            print(f"    {i:2d}. [{s.get('layout','?'):25s}] {s.get('title','')[:50]}")
+
+    # ── 5. Design spec ────────────────────────────────────────────
+    if verbose: print("\n[5] Creating design spec...")
+    design_spec = create_design_spec(analysis, storyboard)
+
+    # Carry document metadata into design_spec so theme_engine can infer theme
+    design_spec["document_type"] = analysis.get("document_type", "")
+    design_spec["title"]         = analysis.get("title", "")
+    design_spec["audience"]      = analysis.get("audience", "")
 
     if verbose:
-        print("\n6. Creating design spec...")
+        print(f"    LLM theme    : {design_spec.get('deck_theme')}")
+        print(f"    Shape        : {design_spec.get('shape_language')}")
 
-    design_spec = create_design_spec(analysis, clean_storyboard)
-    result["design_spec"] = design_spec
-
-    if verbose:
-        print("Theme:", design_spec.get("deck_theme"))
-        print("Shape:", design_spec.get("shape_language"))
-        print("Chart style:", design_spec.get("chart_style"))
-
-    if verbose:
-        print("\n7. Creating theme spec...")
-
+    # ── 6. Theme spec ─────────────────────────────────────────────
+    if verbose: print("\n[6] Resolving theme...")
     theme_spec = create_theme_spec(design_spec)
-    result["theme_spec"] = theme_spec
 
     if verbose:
-        print("Final theme:", theme_spec.get("theme_name"))
+        print(f"    Final theme  : {theme_spec['theme_name']}")
 
+    # ── 7. Render charts ──────────────────────────────────────────
+    if verbose: print("\n[7] Rendering charts...")
+    analysis = create_visual_assets(analysis, theme=theme_spec)
+
+    if verbose:
+        print(f"    Charts rendered: {len(analysis.get('chart_paths', []))}")
+        for c in analysis.get("chart_paths", []):
+            print(f"      [{c.get('chart_type','?'):7s}] {c.get('title','')}")
+
+    result["analysis"]  = analysis
+    result["storyboard"] = storyboard
+    result["design_spec"] = design_spec
+    result["theme_spec"]  = theme_spec
+
+    # ── 8. Build PPT ──────────────────────────────────────────────
     if create_ppt:
-        if verbose:
-            print("\n8. Building PPT...")
-
+        if verbose: print("\n[8] Building PPT...")
         ppt_path = ppt_builder.create_ppt_from_pipeline(
-            analysis=analysis,
-            storyboard=clean_storyboard,
-            design_spec=design_spec,
-            theme_spec=theme_spec
+            analysis    = analysis,
+            storyboard  = storyboard,
+            design_spec = design_spec,
+            theme_spec  = theme_spec,
         )
-
         result["ppt_path"] = ppt_path
-
         if verbose:
-            print("PPT created:", ppt_path)
+            print(f"    Saved: {ppt_path}")
+            print("=" * 60)
 
     return result
