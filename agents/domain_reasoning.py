@@ -933,51 +933,40 @@ def _domain_specific_fallbacks(domain: str, evidence_pack: Sequence[Dict[str, An
 
 
 
-def _coerce_evidence_ids(value: Any, evidence_index: Optional[Dict[str, Dict[str, Any]]] = None) -> List[str]:
-    """Normalize LLM/JSON evidence references to hashable evidence ID strings.
-
-    Some models return evidence_ids as objects like {"id": "E001"} or as
-    nested evidence dicts.  Domain fill logic uses set comparisons, so every
-    item must be converted to plain strings first.
-    """
+def _coerce_evidence_ids(value: Any, evidence_index=None) -> List[str]:
     evidence_index = evidence_index or {}
     if value is None:
         return []
-    if isinstance(value, str):
-        candidates = re.findall(r"E\d{3}", value) or [value]
+
+    # Normalize to flat list first
+    if isinstance(value, (str, int, float)):
+        raw_items = [value]
     elif isinstance(value, dict):
-        candidates = [
-            value.get("id")
-            or value.get("evidence_id")
-            or value.get("source")
-            or value.get("ref")
-            or value.get("claim")
-            or value.get("text")
+        raw_items = [
+            value.get("id") or value.get("evidence_id") or
+            value.get("source") or value.get("ref") or
+            value.get("claim") or value.get("text") or ""
         ]
     elif isinstance(value, (list, tuple, set)):
-        candidates = []
+        raw_items = []
         for item in value:
             if isinstance(item, dict):
-                candidates.append(
-                    item.get("id")
-                    or item.get("evidence_id")
-                    or item.get("source")
-                    or item.get("ref")
-                    or item.get("claim")
-                    or item.get("text")
+                raw_items.append(
+                    item.get("id") or item.get("evidence_id") or
+                    item.get("source") or item.get("ref") or
+                    item.get("claim") or item.get("text") or ""
                 )
             else:
-                candidates.append(item)
+                raw_items.append(item)
     else:
-        candidates = [value]
+        raw_items = [str(value)]
 
     out: List[str] = []
-    for candidate in candidates:
+    for candidate in raw_items:
         if candidate is None:
             continue
-        # Pull E### IDs out of longer strings/dicts converted to strings.
-        text = clean_text(candidate)
-        ids = re.findall(r"E\d{3}", text) or [text]
+        text = clean_text(str(candidate))  # ← always convert to str
+        ids = re.findall(r"E\d{3}", text) or ([text] if text else [])
         for eid in ids:
             eid = clean_text(eid)
             if not eid or eid in out:
@@ -988,9 +977,11 @@ def _coerce_evidence_ids(value: Any, evidence_index: Optional[Dict[str, Dict[str
     return out[:6]
 
 
-def _normalize_evidence_ids_on_item(item: Dict[str, Any], evidence_index: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+def _normalize_evidence_ids_on_item(item, evidence_index=None):
     item = dict(item or {})
-    item["evidence_ids"] = _coerce_evidence_ids(item.get("evidence_ids"), evidence_index)
+    raw = item.get("evidence_ids")
+    # Always re-coerce — guards against LLM returning [{id: ...}] format
+    item["evidence_ids"] = _coerce_evidence_ids(raw, evidence_index)
     return item
 
 def apply_domain_reasoning_layer(analysis: Dict[str, Any], rag_bundle: Dict[str, Any]) -> Dict[str, Any]:
@@ -1056,19 +1047,24 @@ def apply_domain_reasoning_layer(analysis: Dict[str, Any], rag_bundle: Dict[str,
 
     fallback_insights, fallback_risks, fallback_recs = _domain_specific_fallbacks(domain, evidence_pack, evidence_index)
 
-    def fill(existing: List[Dict[str, Any]], fallback: List[Dict[str, Any]], key: str, target: int) -> List[Dict[str, Any]]:
+    def fill(existing, fallback, key, target):
         out = list(existing)
         seen = {clean_text(i.get(key, "")).lower()[:180] for i in out if isinstance(i, dict)}
-        used_ids = {eid for i in out if isinstance(i, dict) for eid in _coerce_evidence_ids(i.get("evidence_ids"), evidence_index)}
+        # ↓ FIX: str() cast prevents dict accidentally entering a set
+        used_ids = {
+            str(eid)
+            for i in out if isinstance(i, dict)
+            for eid in _coerce_evidence_ids(i.get("evidence_ids"), evidence_index)
+        }
         for item in fallback:
             k = clean_text(item.get(key, "")).lower()[:180]
-            ids = set(_coerce_evidence_ids(item.get("evidence_ids"), evidence_index))
-            # Avoid adding domain fallback items based on the same evidence that
-            # already produced a better blended insight.
+            # ↓ FIX: same str() cast here
+            ids = set(str(e) for e in _coerce_evidence_ids(item.get("evidence_ids"), evidence_index))
             if ids and ids.issubset(used_ids):
                 continue
             if k and k not in seen:
-                out.append(_append_expert_note(_normalize_evidence_ids_on_item(_normalize_domain_language(item, domain), evidence_index), expert_note))
+                # out.append(...)
+                out.append({**item, "evidence_ids": list(ids)})
                 seen.add(k)
                 used_ids.update(ids)
             if len(out) >= target:

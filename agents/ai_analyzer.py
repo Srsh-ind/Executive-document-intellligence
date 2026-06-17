@@ -268,8 +268,12 @@ def _chart_trend_sentence(chart):
     if len(data) < 2:
         return ""
     try:
-        first = float(data[0].get("value"))
-        last = float(data[-1].get("value"))
+        first_val = data[0].get("value") if isinstance(data[0], dict) else None
+        last_val = data[-1].get("value") if isinstance(data[-1], dict) else None
+        first = float(first_val) if first_val is not None else None
+        last = float(last_val) if last_val is not None else None
+        if first is None or last is None:
+            return 
     except Exception:
         return ""
     title = str(chart.get("title") or "Metric trend")
@@ -435,8 +439,8 @@ def _finance_narrative_fix(analysis, metric_cards=None, rag_bundle=None):
     text_blob += " " + " ".join(str(x) for x in analysis.get("key_findings", []) or [])
     finance_like = "finance" in str(domain_key).lower() or any(t in text_blob.lower() for t in ("revenue", "bookings", "operating margin", "cash flow", "eps", "ebitda"))
     if not finance_like:
-        return _ensure_distinct_core_message(analysis) if '_ensure_distinct_core_message' in globals() else analysis
-
+        return _ensure_distinct_core_message(analysis)
+        
     revenue = _metric_value(metric_cards, analysis, "revenue")
     bookings = _metric_value(metric_cards, analysis, "bookings")
     op_margin = _metric_value(metric_cards, analysis, ["operating margin", "margin"])

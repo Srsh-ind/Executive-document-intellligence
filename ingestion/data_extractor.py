@@ -827,75 +827,127 @@ def extract_metric_cards_from_tables(tables, max_cards=20):
 
 # ─── main entry point ────────────────────────────────────────────
 
+def _empty_extraction(path, ext="", error=""):
+    return {
+        "text": "",
+        "tables": [],
+        "numbers": [],
+        "metric_cards": [],
+        "chart_candidates": [],
+        "sections": [],
+        "file_type": ext,
+        "text_length": 0,
+        "table_count": 0,
+        "metric_count": 0,
+        "chart_candidate_count": 0,
+        "extraction_error": error,
+        "source_file": path,
+    }
+
+
 def extract_document_data(path):
     ext = os.path.splitext(path)[1].lower()
 
-    if ext == ".pdf":
-        text, tables = extract_pdf(path)
-    elif ext == ".docx":
-        text, tables = extract_docx(path)
+    try:
+        if ext == ".pdf":
+            text, tables = extract_pdf(path)
 
-    elif ext == ".doc":
-        # Convert .doc → .docx via libreoffice if available
-        try:
-            import subprocess, tempfile, shutil
-            tmp = tempfile.mkdtemp()
-            subprocess.run(
-                ["python3", "/mnt/skills/public/docx/scripts/office/soffice.py",
-                 "--headless", "--convert-to", "docx", "--outdir", tmp, path],
-                check=True, capture_output=True
+        elif ext == ".docx":
+            text, tables = extract_docx(path)
+
+        elif ext == ".doc":
+            try:
+                import subprocess, tempfile, shutil
+                tmp = tempfile.mkdtemp()
+                subprocess.run(
+                    [
+                        "python3",
+                        "/mnt/skills/public/docx/scripts/office/soffice.py",
+                        "--headless",
+                        "--convert-to",
+                        "docx",
+                        "--outdir",
+                        tmp,
+                        path,
+                    ],
+                    check=True,
+                    capture_output=True,
+                )
+                converted = os.path.join(
+                    tmp,
+                    os.path.basename(path).replace(".doc", ".docx")
+                )
+                text, tables = extract_docx(converted)
+                shutil.rmtree(tmp, ignore_errors=True)
+            except Exception:
+                with open(path, "rb") as f:
+                    text = f.read().decode("utf-8", errors="ignore")
+                tables = []
+
+        elif ext == ".pptx":
+            text, tables = extract_pptx(path)
+
+        elif ext == ".txt":
+            text, tables = extract_txt(path)
+
+        elif ext == ".csv":
+            text, tables = extract_csv(path)
+
+        elif ext in (".xlsx", ".xls"):
+            text, tables = extract_excel(path)
+
+        else:
+            return _empty_extraction(
+                path,
+                ext=ext,
+                error=f"Unsupported file type: {ext}",
             )
-            converted = os.path.join(tmp, os.path.basename(path).replace(".doc", ".docx"))
-            text, tables = extract_docx(converted)
-            shutil.rmtree(tmp, ignore_errors=True)
-        except Exception:
-            # Fallback: read as plain text
-            with open(path, "rb") as f:
-                text = f.read().decode("utf-8", errors="ignore")
-            tables = []
-    elif ext == ".pptx":
-        text, tables = extract_pptx(path)
 
-    elif ext == ".txt":
-        text, tables = extract_txt(path)
+        numbers = extract_numbers_from_text(text)
+        metric_cards = deduplicate_metric_cards(
+            extract_metric_cards(text) + extract_metric_cards_from_tables(tables)
+        )
 
-    elif ext == ".csv":
-        text, tables = extract_csv(path)
-    elif ext in (".xlsx", ".xls"):
-        text, tables = extract_excel(path)
+        chart_candidates = build_chart_candidates_from_tables(
+            tables,
+            metric_cards=metric_cards,
+        )
 
-    else:
-        raise ValueError(f"Unsupported file type: {ext}")
+        line_candidates = [] if _is_research_like_text(text) else build_chart_candidates_from_text_lines(text)
 
-    numbers      = extract_numbers_from_text(text)
-    metric_cards = deduplicate_metric_cards(extract_metric_cards(text) + extract_metric_cards_from_tables(tables))
-    # Pass metric_cards into chart candidate builder so prose docs get charts too.
-    # Also extract chart-ready series directly from text lines, not only formal tables.
-    chart_candidates = build_chart_candidates_from_tables(tables, metric_cards=metric_cards)
-    line_candidates = [] if _is_research_like_text(text) else build_chart_candidates_from_text_lines(text)
-    seen_chart_titles = {str(c.get("title", "")).strip().lower() for c in chart_candidates}
-    for candidate in line_candidates:
-        key = str(candidate.get("title", "")).strip().lower()
-        if key and key not in seen_chart_titles:
-            chart_candidates.append(candidate)
-            seen_chart_titles.add(key)
-    sections     = extract_sections(text)
-    tables       = normalize_single_column_tables(tables)
+        seen_chart_titles = {
+            str(c.get("title", "")).strip().lower()
+            for c in chart_candidates
+        }
 
-    return {
-        "text":                text,
-        "tables":              tables,
-        "numbers":             numbers,
-        "metric_cards":        metric_cards,
-        "chart_candidates":    chart_candidates,
-        "sections":            sections,
-        "file_type":           ext,
-        "text_length":         len(text),
-        "table_count":         len(tables),
-        "metric_count":        len(metric_cards),
-        "chart_candidate_count": len(chart_candidates),
-    }
+        for candidate in line_candidates:
+            key = str(candidate.get("title", "")).strip().lower()
+            if key and key not in seen_chart_titles:
+                chart_candidates.append(candidate)
+                seen_chart_titles.add(key)
 
+        sections = extract_sections(text)
+        tables = normalize_single_column_tables(tables)
+
+        return {
+            "text": text,
+            "tables": tables,
+            "numbers": numbers,
+            "metric_cards": metric_cards,
+            "chart_candidates": chart_candidates,
+            "sections": sections,
+            "file_type": ext,
+            "text_length": len(text),
+            "table_count": len(tables),
+            "metric_count": len(metric_cards),
+            "chart_candidate_count": len(chart_candidates),
+            "extraction_error": "",
+            "source_file": path,
+        }
+
+    except Exception as exc:
+        print(f"[data_extractor] extraction failed for {path}: {exc}")
+        return _empty_extraction(path, ext=ext, error=str(exc))
 
 def deduplicate_metric_cards(cards):
     """

@@ -2,15 +2,9 @@ import json
 
 
 def extract_json(text):
-    """
-    Extract valid JSON from model output.
-    Prevents broken raw JSON from going into Streamlit/PPT.
-    """
     if not text:
         return None
-
     text = text.strip()
-
     try:
         return json.loads(text)
     except Exception:
@@ -18,14 +12,24 @@ def extract_json(text):
 
     start = text.find("{")
     end = text.rfind("}")
-
     if start == -1 or end == -1 or end <= start:
         return None
 
     candidate = text[start:end + 1]
-
     try:
         return json.loads(candidate)
+    except Exception:
+        pass
+
+    # ↓ NEW: try truncation repair by stripping incomplete trailing content
+    try:
+        # Remove the last incomplete key-value pair and close braces
+        repaired = re.sub(r',\s*"[^"]*"\s*:\s*[^}]*$', '', candidate)
+        # Re-close any unclosed brackets/braces
+        open_brackets = repaired.count('[') - repaired.count(']')
+        open_braces = repaired.count('{') - repaired.count('}')
+        repaired += ']' * open_brackets + '}' * open_braces
+        return json.loads(repaired)
     except Exception:
         return None
 
